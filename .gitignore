@@ -38,9 +38,6 @@ desktop.ini
 coverage/
 .nyc_output/
 
-# MongoDB local data
-mongodb_data/
-
 # Cache
 .cache/
 .parcel-cache

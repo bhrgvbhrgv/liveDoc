@@ -6,6 +6,7 @@ export default function EditorToolbar({ editor }) {
     const ToolbarButton = ({ onClick, isActive, children, title }) => (
         <button
             onClick={onClick}
+            onMouseDown={(e) => e.preventDefault()}
             className={`p-2 rounded hover:bg-gray-200 transition ${isActive ? 'bg-gray-300 text-primary-600' : 'text-gray-700'
                 }`}
             title={title}

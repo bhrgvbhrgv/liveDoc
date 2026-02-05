@@ -53,52 +53,35 @@ Your MongoDB Atlas is already configured:
 
 ## Deployment Options
 
-### Option 1: Deploy to Render (Recommended)
+### Option 1: Deploy to Vercel (Recommended for All)
+
+Since we've configured the project for Vercel, you can deploy both Frontend and Backend on Vercel!
 
 **Backend Deployment:**
-
-1. Go to https://render.com and sign up
-2. Click "New +" → "Web Service"
-3. Connect your GitHub repository
-4. Configure:
-   - **Name**: `livedoc-backend`
-   - **Root Directory**: `server`
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-   - **Environment Variables**: Add all from `.env`
+1.  Go to Vercel Dashboard → "Add New..." → "Project"
+2.  Import your repository
+3.  Configure **Project Settings**:
+    *   **Framework Preset**: Other (or leave default)
+    *   **Root Directory**: `server` (Click Edit next to Root Directory)
+4.  **Environment Variables**:
+    *   Add all variables from `server/.env` (`MONGODB_URI`, `JWT_SECRET`, etc.)
+5.  Deploy!
+6.  **Copy the assigned Domain** (e.g., `https://livedoc-server.vercel.app`)
 
 **Frontend Deployment:**
-
-1. Click "New +" → "Static Site"
-2. Configure:
-   - **Name**: `livedoc-frontend`
-   - **Root Directory**: `client`
-   - **Build Command**: `npm install && npm run build`
-   - **Publish Directory**: `dist`
-3. Add environment variable:
-   - `VITE_API_URL`: Your backend URL (e.g., `https://livedoc-backend.onrender.com`)
+1.  Go to Vercel Dashboard → "Add New..." → "Project"
+2.  Import the **same** repository again
+3.  Configure **Project Settings**:
+    *   **Framework Preset**: Vite
+    *   **Root Directory**: `client` (Click Edit next to Root Directory)
+4.  **Environment Variables**:
+    *   `VITE_API_URL`: The Backend Domain you copied earlier (e.g., `https://livedoc-server.vercel.app/api`)
+5.  Deploy!
 
 ---
 
-### Option 2: Deploy to Vercel
+### Option 2: Deploy to Render
 
-**Frontend Only (Vercel):**
-
-1. Install Vercel CLI:
-   ```bash
-   npm install -g vercel
-   ```
-
-2. Deploy frontend:
-   ```bash
-   cd client
-   vercel
-   ```
-
-3. Set environment variable in Vercel dashboard:
-   - `VITE_API_URL`: Your backend URL
-
-**Backend (Use Render or Railway for Node.js)**
 
 ---
 
