@@ -3,7 +3,7 @@ import { createRoomContext } from '@liveblocks/react';
 
 const client = createClient({
     authEndpoint: async (room) => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
 
         const response = await fetch('/api/liveblocks-auth', {
             method: 'POST',

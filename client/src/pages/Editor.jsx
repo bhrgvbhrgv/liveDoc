@@ -28,8 +28,8 @@ function Presence() {
     const [showDropdown, setShowDropdown] = useState(false);
     const dropdownRef = useRef(null);
 
-    // Get current user from localStorage
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    // Get current user from sessionStorage
+    const currentUser = JSON.parse(sessionStorage.getItem('user') || '{}');
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -317,7 +317,7 @@ export default function Editor() {
     const { id } = useParams();
 
     // Get user info and generate a random color for presence
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     const userColor = `hsl(${Math.random() * 360}, 70%, 50%)`;
 
     return (

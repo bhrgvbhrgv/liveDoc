@@ -5,7 +5,7 @@ import Editor from './pages/Editor';
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
 
     if (!token) {
         return <Navigate to="/" replace />;
