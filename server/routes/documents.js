@@ -76,13 +76,22 @@ router.get('/:id', authMiddleware, async (req, res) => {
         }
 
         // Check if user has access
-        const hasAccess = document.ownerId._id.toString() === req.userId ||
-            document.collaborators.some(c => c._id.toString() === req.userId);
+        const isOwner = document.ownerId._id.toString() === req.userId;
+        const isCollaborator = document.collaborators.some(c => c._id.toString() === req.userId);
 
-        if (!hasAccess) {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied'
+        // Auto-add as collaborator if not already (Link Sharing behavior)
+        if (!isOwner && !isCollaborator) {
+            document.collaborators.push(req.userId);
+            await document.save();
+
+            // Re-fetch to populate the new collaborator
+            const updatedDoc = await Document.findById(req.params.id)
+                .populate('ownerId', 'name email avatar')
+                .populate('collaborators', 'name email avatar');
+
+            return res.json({
+                success: true,
+                document: updatedDoc
             });
         }
 
@@ -116,14 +125,12 @@ router.put('/:id', authMiddleware, async (req, res) => {
         }
 
         // Check if user has access
-        const hasAccess = document.ownerId.toString() === req.userId ||
-            document.collaborators.some(c => c.toString() === req.userId);
+        const isOwner = document.ownerId.toString() === req.userId;
+        const isCollaborator = document.collaborators.some(c => c.toString() === req.userId);
 
-        if (!hasAccess) {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied'
-            });
+        // Auto-add as collaborator via update if they somehow have the ID (Link Sharing)
+        if (!isOwner && !isCollaborator) {
+            document.collaborators.push(req.userId);
         }
 
         // Update fields

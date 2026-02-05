@@ -50,7 +50,10 @@ export default function Login() {
         <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
             <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
                 <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-primary-600 mb-2">📝 LiveDoc</h1>
+                    <div className="flex items-center justify-center gap-3 mb-2">
+                        <img src="/logo.png" alt="LiveDoc Logo" className="h-12 w-12" />
+                        <h1 className="text-4xl font-bold text-primary-600">LiveDoc</h1>
+                    </div>
                     <p className="text-gray-600">Collaborative document editing in real-time</p>
                 </div>
 

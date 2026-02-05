@@ -15,13 +15,23 @@ export default function Navbar() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
                     <div className="flex items-center">
-                        <h1 className="text-2xl font-bold text-primary-600 cursor-pointer" onClick={() => navigate('/dashboard')}>
-                            📝 LiveDoc
-                        </h1>
+                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/dashboard')}>
+                            <img src="/logo.png" alt="LiveDoc Logo" className="h-8 w-8" />
+                            <h1 className="text-2xl font-bold text-primary-600">
+                                LiveDoc
+                            </h1>
+                        </div>
                     </div>
 
                     {user.name && (
                         <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => navigate('/dashboard')}
+                                className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-md transition flex items-center gap-2"
+                            >
+                                🏠 Dashboard
+                            </button>
+                            <div className="h-6 w-px bg-gray-300"></div>
                             <div className="flex items-center gap-2">
                                 <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
                                     {user.name.charAt(0).toUpperCase()}
