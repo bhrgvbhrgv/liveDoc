@@ -2,6 +2,21 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import TextAlign from '@tiptap/extension-text-align';
+import Color from '@tiptap/extension-color';
+import TextStyle from '@tiptap/extension-text-style';
+import Highlight from '@tiptap/extension-highlight';
+import Link from '@tiptap/extension-link';
+import Image from '@tiptap/extension-image';
+import Table from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableCell from '@tiptap/extension-table-cell';
+import TableHeader from '@tiptap/extension-table-header';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import Subscript from '@tiptap/extension-subscript';
+import Superscript from '@tiptap/extension-superscript';
 import { RoomProvider, useOthers } from '../lib/liveblocks';
 import Navbar from '../components/Navbar';
 import EditorToolbar from '../components/EditorToolbar';
@@ -139,7 +154,41 @@ function CollaborativeEditor({ documentId }) {
     const saveTimeoutRef = useRef(null);
 
     const editor = useEditor({
-        extensions: [StarterKit],
+        extensions: [
+            StarterKit,
+            Underline,
+            TextAlign.configure({
+                types: ['heading', 'paragraph'],
+            }),
+            TextStyle,
+            Color,
+            Highlight.configure({
+                multicolor: true,
+            }),
+            Link.configure({
+                openOnClick: false,
+                HTMLAttributes: {
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                },
+            }),
+            Image.configure({
+                inline: true,
+                allowBase64: true,
+            }),
+            Table.configure({
+                resizable: true,
+            }),
+            TableRow,
+            TableCell,
+            TableHeader,
+            TaskList,
+            TaskItem.configure({
+                nested: true,
+            }),
+            Subscript,
+            Superscript,
+        ],
         content: '',
         onUpdate: ({ editor }) => {
             // Auto-save after 2 seconds of inactivity
