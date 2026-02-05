@@ -15,10 +15,9 @@ connectDB();
 
 // Middleware
 app.use(cors({
-    origin: '*', // Allow all origins (for now) to fix deployment issues
+    origin: '*', // Allow all origins
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
