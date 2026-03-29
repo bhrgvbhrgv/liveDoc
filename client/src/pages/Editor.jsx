@@ -158,6 +158,12 @@ function CollaborativeEditor({ documentId }) {
     const [title, setTitle] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [aiBusy, setAiBusy] = useState(false);
+    const [aiPrompt, setAiPrompt] = useState('');
+    const [aiMode, setAiMode] = useState('outline');
+    const [qaQuestion, setQaQuestion] = useState('');
+    const [qaAnswer, setQaAnswer] = useState('');
+    const [qaLoading, setQaLoading] = useState(false);
     const [isProviderSynced, setIsProviderSynced] = useState(false);
     const saveTimeoutRef = useRef(null);
     const hasSeededEditorRef = useRef(false);
@@ -317,6 +323,88 @@ function CollaborativeEditor({ documentId }) {
         }
     };
 
+    const handleAiSelectionAction = async (action, options = {}) => {
+        if (!editor) {
+            return;
+        }
+
+        const { from, to } = editor.state.selection;
+        const selectedText = editor.state.doc.textBetween(from, to, ' ').trim();
+
+        if (!selectedText) {
+            alert('Select some text first.');
+            return;
+        }
+
+        setAiBusy(true);
+        try {
+            const response = await api.post('/ai/edit-selection', {
+                documentId,
+                selectedText,
+                action,
+                targetLanguage: options.targetLanguage
+            });
+
+            const result = response?.data?.result;
+            if (result) {
+                editor.chain().focus().insertContent(result).run();
+            }
+        } catch (error) {
+            const message = error?.response?.data?.error || error?.response?.data?.message || 'AI action failed. Please try again.';
+            alert(message);
+        } finally {
+            setAiBusy(false);
+        }
+    };
+
+    const handleGenerate = async () => {
+        if (!aiPrompt.trim()) {
+            alert('Enter a prompt first.');
+            return;
+        }
+
+        setAiBusy(true);
+        try {
+            const response = await api.post('/ai/generate-draft', {
+                documentId,
+                prompt: aiPrompt,
+                mode: aiMode
+            });
+
+            const result = response?.data?.result;
+            if (result && editor) {
+                editor.chain().focus().insertContent(result).run();
+                setAiPrompt('');
+            }
+        } catch (error) {
+            const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to generate content.';
+            alert(message);
+        } finally {
+            setAiBusy(false);
+        }
+    };
+
+    const handleAskDocument = async () => {
+        if (!qaQuestion.trim()) {
+            alert('Enter a question first.');
+            return;
+        }
+
+        setQaLoading(true);
+        try {
+            const response = await api.post('/ai/ask-document', {
+                documentId,
+                question: qaQuestion
+            });
+            setQaAnswer(response?.data?.answer || 'No answer returned.');
+        } catch (error) {
+            const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to get answer from AI.';
+            setQaAnswer(message);
+        } finally {
+            setQaLoading(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -352,12 +440,77 @@ function CollaborativeEditor({ documentId }) {
                         </div>
                     </div>
 
-                    {/* Editor Toolbar */}
-                    <EditorToolbar editor={editor} />
+                    <div className="p-6 space-y-6">
+                        <section className="border border-gray-200 rounded-lg bg-gray-50 overflow-hidden">
+                            <div className="px-4 py-2 border-b border-gray-200 bg-white">
+                                <h3 className="text-sm font-semibold text-gray-900">Toolbox</h3>
+                            </div>
+                            <EditorToolbar
+                                editor={editor}
+                                onAiAction={handleAiSelectionAction}
+                                aiBusy={aiBusy}
+                            />
+                        </section>
 
-                    {/* Editor Content */}
-                    <div className="p-6">
-                        <EditorContent editor={editor} className="prose max-w-none" />
+                        <section className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                            <h3 className="text-sm font-semibold text-gray-900 mb-2">Generate Outline / Draft</h3>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <select
+                                    value={aiMode}
+                                    onChange={(e) => setAiMode(e.target.value)}
+                                    className="border rounded px-3 py-2 text-sm"
+                                >
+                                    <option value="outline">Outline</option>
+                                    <option value="draft">Draft</option>
+                                </select>
+                                <input
+                                    type="text"
+                                    value={aiPrompt}
+                                    onChange={(e) => setAiPrompt(e.target.value)}
+                                    placeholder="Prompt (e.g., Weekly project status report)"
+                                    className="border rounded px-3 py-2 text-sm flex-1"
+                                />
+                                <button
+                                    onClick={handleGenerate}
+                                    disabled={aiBusy}
+                                    className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 disabled:opacity-60"
+                                >
+                                    Generate
+                                </button>
+                            </div>
+                        </section>
+
+                        <section className="border-2 border-gray-200 rounded-lg bg-white p-6 shadow-inner">
+                            <h3 className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-4">
+                                Document Sheet
+                            </h3>
+                            <EditorContent editor={editor} className="prose max-w-none min-h-[360px]" />
+                        </section>
+
+                        <section className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                            <h3 className="text-sm font-semibold text-gray-900 mb-2">Ask This Document</h3>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <input
+                                    type="text"
+                                    value={qaQuestion}
+                                    onChange={(e) => setQaQuestion(e.target.value)}
+                                    placeholder="Ask a question about this document"
+                                    className="border rounded px-3 py-2 text-sm flex-1"
+                                />
+                                <button
+                                    onClick={handleAskDocument}
+                                    disabled={qaLoading}
+                                    className="bg-gray-900 text-white px-4 py-2 rounded-md hover:bg-black disabled:opacity-60"
+                                >
+                                    {qaLoading ? 'Asking...' : 'Ask'}
+                                </button>
+                            </div>
+                            {qaAnswer && (
+                                <div className="mt-3 p-3 border rounded-md bg-white text-sm text-gray-800 whitespace-pre-wrap">
+                                    {qaAnswer}
+                                </div>
+                            )}
+                        </section>
                     </div>
                 </div>
 

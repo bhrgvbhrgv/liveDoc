@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 
-export default function EditorToolbar({ editor }) {
+export default function EditorToolbar({ editor, onAiAction, aiBusy = false }) {
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [showHighlightPicker, setShowHighlightPicker] = useState(false);
     const [showLinkInput, setShowLinkInput] = useState(false);
@@ -123,6 +123,23 @@ export default function EditorToolbar({ editor }) {
         setShowTableInput(false);
         setTableRows(3);
         setTableCols(3);
+    };
+
+    const runAiAction = (action) => {
+        if (!onAiAction) {
+            return;
+        }
+
+        if (action === 'translate') {
+            const targetLanguage = window.prompt('Translate to which language?', 'Spanish');
+            if (!targetLanguage) {
+                return;
+            }
+            onAiAction(action, { targetLanguage });
+            return;
+        }
+
+        onAiAction(action);
     };
 
     return (
@@ -630,6 +647,44 @@ export default function EditorToolbar({ editor }) {
                 title="Redo"
             >
                 ↷
+            </ToolbarButton>
+            <Divider />
+
+            {/* AI Writing Assistant */}
+            <ToolbarButton
+                onClick={() => runAiAction('rewrite')}
+                isActive={false}
+                disabled={aiBusy}
+                title="AI Rewrite selected text"
+            >
+                Rewrite
+            </ToolbarButton>
+
+            <ToolbarButton
+                onClick={() => runAiAction('summarize')}
+                isActive={false}
+                disabled={aiBusy}
+                title="AI Summarize selected text"
+            >
+                Summarize
+            </ToolbarButton>
+
+            <ToolbarButton
+                onClick={() => runAiAction('fix_grammar')}
+                isActive={false}
+                disabled={aiBusy}
+                title="AI Fix grammar for selected text"
+            >
+                Fix
+            </ToolbarButton>
+
+            <ToolbarButton
+                onClick={() => runAiAction('translate')}
+                isActive={false}
+                disabled={aiBusy}
+                title="AI Translate selected text"
+            >
+                Translate
             </ToolbarButton>
         </div>
     );
