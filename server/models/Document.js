@@ -16,6 +16,17 @@ const documentSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }],
+    accessRequests: [{
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        },
+        requestedAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
     content: {
         type: String,
         default: ''

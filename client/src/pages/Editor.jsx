@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -17,10 +17,16 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
-import { RoomProvider, useOthers } from '../lib/liveblocks';
+import Collaboration from '@tiptap/extension-collaboration';
+import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
+import * as Y from 'yjs';
+import LiveblocksProvider from '@liveblocks/yjs';
+import { RoomProvider, useOthers, useRoom } from '../lib/liveblocks';
 import Navbar from '../components/Navbar';
 import EditorToolbar from '../components/EditorToolbar';
 import api from '../lib/api';
+
+const YJS_FIELD = 'default';
 
 // Presence component to show online users
 function Presence() {
@@ -62,10 +68,10 @@ function Presence() {
                         <div
                             key={other.connectionId}
                             className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold border-2 border-white"
-                            style={{ backgroundColor: other.presence?.color || '#666' }}
-                            title={other.presence?.name || 'Anonymous'}
+                            style={{ backgroundColor: other.info?.color || other.presence?.color || '#666' }}
+                            title={other.info?.name || other.presence?.name || 'Anonymous'}
                         >
-                            {(other.presence?.name || 'A').charAt(0).toUpperCase()}
+                            {(other.info?.name || other.presence?.name || 'A').charAt(0).toUpperCase()}
                         </div>
                     ))}
                     {others.length > 3 && (
@@ -115,16 +121,16 @@ function Presence() {
                             >
                                 <div
                                     className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold"
-                                    style={{ backgroundColor: other.presence?.color || '#666' }}
+                                    style={{ backgroundColor: other.info?.color || other.presence?.color || '#666' }}
                                 >
-                                    {(other.presence?.name || 'A').charAt(0).toUpperCase()}
+                                    {(other.info?.name || other.presence?.name || 'A').charAt(0).toUpperCase()}
                                 </div>
                                 <div className="flex-1">
                                     <div className="text-sm font-medium text-gray-900">
-                                        {other.presence?.name || 'Anonymous'}
+                                        {other.info?.name || other.presence?.name || 'Anonymous'}
                                     </div>
                                     <div className="text-xs text-gray-500">
-                                        {other.presence?.email || 'Viewing document'}
+                                        {other.info?.email || other.presence?.email || 'Viewing document'}
                                     </div>
                                 </div>
                                 <div className="w-2 h-2 bg-green-500 rounded-full" title="Online"></div>
@@ -147,15 +153,29 @@ function Presence() {
 // Editor component (inside RoomProvider)
 function CollaborativeEditor({ documentId }) {
     const navigate = useNavigate();
-    const [document, setDocument] = useState(null);
+    const room = useRoom();
+    const [documentData, setDocumentData] = useState(null);
     const [title, setTitle] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [isProviderSynced, setIsProviderSynced] = useState(false);
     const saveTimeoutRef = useRef(null);
+    const hasSeededEditorRef = useRef(false);
+    const currentUser = useMemo(() => JSON.parse(sessionStorage.getItem('user') || '{}'), []);
+    const ydoc = useMemo(() => new Y.Doc(), []);
+    const provider = useMemo(() => new LiveblocksProvider(room, ydoc), [room, ydoc]);
 
     const editor = useEditor({
         extensions: [
-            StarterKit,
+            StarterKit.configure({ history: false }),
+            Collaboration.configure({ document: ydoc, field: YJS_FIELD }),
+            CollaborationCursor.configure({
+                provider,
+                user: {
+                    name: currentUser.name || 'Anonymous',
+                    color: currentUser.color || `hsl(${Math.random() * 360}, 70%, 50%)`,
+                },
+            }),
             Underline,
             TextAlign.configure({
                 types: ['heading', 'paragraph'],
@@ -189,7 +209,6 @@ function CollaborativeEditor({ documentId }) {
             Subscript,
             Superscript,
         ],
-        content: '',
         onUpdate: ({ editor }) => {
             // Auto-save after 2 seconds of inactivity
             if (saveTimeoutRef.current) {
@@ -201,6 +220,49 @@ function CollaborativeEditor({ documentId }) {
             }, 2000);
         },
     });
+
+    useEffect(() => {
+        const handleSync = (synced) => {
+            setIsProviderSynced(Boolean(synced));
+        };
+
+        provider.on('synced', handleSync);
+        provider.on('sync', handleSync);
+
+        return () => {
+            provider.off('synced', handleSync);
+            provider.off('sync', handleSync);
+        };
+    }, [provider]);
+
+    useEffect(() => {
+        if (!isProviderSynced || !editor || !documentData || hasSeededEditorRef.current) {
+            return;
+        }
+
+        const hasDatabaseContent = typeof documentData.content === 'string' && documentData.content.trim().length > 0;
+        const editorIsEmpty = editor.isEmpty || editor.getText().trim().length === 0;
+
+        // Seed from DB only when the collaborative doc is effectively empty.
+        // This avoids race conditions and prevents overwriting remote content.
+        if (hasDatabaseContent && editorIsEmpty) {
+            editor.commands.setContent(documentData.content);
+        }
+
+        hasSeededEditorRef.current = true;
+    }, [isProviderSynced, editor, documentData]);
+
+    useEffect(() => {
+        hasSeededEditorRef.current = false;
+        setIsProviderSynced(false);
+    }, [documentId]);
+
+    useEffect(() => {
+        return () => {
+            provider.destroy();
+            ydoc.destroy();
+        };
+    }, [provider, ydoc]);
 
     useEffect(() => {
         fetchDocument();
@@ -217,13 +279,8 @@ function CollaborativeEditor({ documentId }) {
             const response = await api.get(`/documents/${documentId}`);
             if (response.data.success) {
                 const doc = response.data.document;
-                setDocument(doc);
+                setDocumentData(doc);
                 setTitle(doc.title);
-
-                // Set initial content
-                if (editor && doc.content) {
-                    editor.commands.setContent(doc.content);
-                }
             }
         } catch (error) {
             console.error('Error fetching document:', error);
@@ -315,10 +372,139 @@ function CollaborativeEditor({ documentId }) {
 // Main Editor page with RoomProvider
 export default function Editor() {
     const { id } = useParams();
+    const navigate = useNavigate();
+    const [accessState, setAccessState] = useState('checking');
+    const [accessRequestStatus, setAccessRequestStatus] = useState('idle');
 
-    // Get user info and generate a random color for presence
+    useEffect(() => {
+        let isMounted = true;
+
+        const ensureDocumentAccess = async () => {
+            try {
+                await api.get(`/documents/${id}`);
+                if (isMounted) {
+                    setAccessState('ready');
+                }
+                return;
+            } catch (error) {
+                const status = error?.response?.status;
+
+                if (status === 403) {
+                    if (isMounted) {
+                        setAccessState('forbidden');
+                    }
+                    return;
+                }
+
+                if (isMounted) {
+                    setAccessState(status === 404 ? 'not_found' : 'error');
+                }
+            }
+        };
+
+        ensureDocumentAccess();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [id]);
+
+    useEffect(() => {
+        if (accessRequestStatus !== 'requested') {
+            return undefined;
+        }
+
+        const intervalId = setInterval(async () => {
+            try {
+                await api.get(`/documents/${id}`);
+                setAccessState('ready');
+            } catch (error) {
+                // Keep polling until owner approves or user navigates away.
+            }
+        }, 5000);
+
+        return () => clearInterval(intervalId);
+    }, [accessRequestStatus, id]);
+
+    const handleRequestAccess = async () => {
+        setAccessRequestStatus('sending');
+        try {
+            await api.post(`/documents/${id}/access-request`);
+            setAccessRequestStatus('requested');
+        } catch (error) {
+            setAccessRequestStatus('failed');
+        }
+    };
+
+    // Get user info and generate a stable color for this session
     const user = JSON.parse(sessionStorage.getItem('user') || '{}');
-    const userColor = `hsl(${Math.random() * 360}, 70%, 50%)`;
+    const colorStorageKey = `presence-color-${user.id || 'anonymous'}`;
+    let userColor = sessionStorage.getItem(colorStorageKey);
+    if (!userColor) {
+        userColor = `hsl(${Math.random() * 360}, 70%, 50%)`;
+        sessionStorage.setItem(colorStorageKey, userColor);
+    }
+
+    if (accessState === 'checking') {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                    <p className="mt-4 text-gray-600">Joining document...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (accessState !== 'ready') {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                <div className="bg-white shadow-sm rounded-lg p-6 max-w-md w-full text-center">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Cannot open this document</h2>
+                    <p className="text-gray-600 mb-4">
+                        {accessState === 'not_found'
+                            ? 'This document does not exist.'
+                            : accessState === 'forbidden'
+                                ? 'You do not have permission to join this document.'
+                                : 'Something went wrong while opening this document.'}
+                    </p>
+                    {accessState === 'forbidden' && (
+                        <>
+                            <button
+                                onClick={handleRequestAccess}
+                                disabled={accessRequestStatus === 'sending' || accessRequestStatus === 'requested'}
+                                className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                {accessRequestStatus === 'sending'
+                                    ? 'Sending Request...'
+                                    : accessRequestStatus === 'requested'
+                                        ? 'Request Sent'
+                                        : 'Request Access'}
+                            </button>
+                            {accessRequestStatus === 'requested' && (
+                                <p className="text-sm text-gray-500 mt-3">
+                                    Request sent to the owner. This page will open automatically after approval.
+                                </p>
+                            )}
+                            {accessRequestStatus === 'failed' && (
+                                <p className="text-sm text-red-600 mt-3">
+                                    Failed to send request. Please try again.
+                                </p>
+                            )}
+                        </>
+                    )}
+                    <div className="mt-4">
+                        <button
+                            onClick={() => navigate('/dashboard')}
+                            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition"
+                        >
+                            Back to Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <RoomProvider

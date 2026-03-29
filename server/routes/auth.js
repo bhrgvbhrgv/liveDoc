@@ -10,8 +10,6 @@ router.post('/register', async (req, res) => {
     try {
         const { name, email, password } = req.body;
 
-        console.log('📥 Registration attempt:', { name, email, passwordLength: password?.length });
-
         // Validate input
         if (!name || !email || !password) {
             return res.status(400).json({
@@ -65,8 +63,7 @@ router.post('/register', async (req, res) => {
         }
         res.status(500).json({
             success: false,
-            message: 'Server error during registration',
-            error: error.message // Sending error to client for easier debugging
+            message: 'Server error during registration'
         });
     }
 });

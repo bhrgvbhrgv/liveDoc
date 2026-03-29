@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Liveblocks } = require('@liveblocks/node');
 const authMiddleware = require('../middleware/authMiddleware');
+const Document = require('../models/Document');
 
 // Initialize Liveblocks
 const liveblocks = new Liveblocks({
@@ -19,6 +20,34 @@ router.post('/liveblocks-auth', authMiddleware, async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'Room ID is required'
+            });
+        }
+
+        const match = /^document-([a-f\d]{24})$/i.exec(room);
+        if (!match) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid room ID format'
+            });
+        }
+
+        const documentId = match[1];
+        const document = await Document.findById(documentId).select('ownerId collaborators');
+
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
+
+        const isOwner = document.ownerId.toString() === req.userId;
+        const isCollaborator = document.collaborators.some((collaborator) => collaborator.toString() === req.userId);
+
+        if (!isOwner && !isCollaborator) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have access to this document'
             });
         }
 

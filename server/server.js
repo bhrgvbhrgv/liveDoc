@@ -13,19 +13,38 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
-// Manual CORS implementation to fix Vercel issues
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+const allowedOriginsFromEnv = (process.env.CORS_ORIGIN || process.env.CLIENT_URL || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
-    // Handle preflight requests immediately
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
+const defaultDevOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+];
+
+const allowedOrigins = allowedOriginsFromEnv.length > 0
+    ? allowedOriginsFromEnv
+    : (process.env.NODE_ENV === 'production' ? [] : defaultDevOrigins);
+
+const corsOptions = {
+    origin(origin, callback) {
+        if (!origin) {
+            return callback(null, true);
+        }
+
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(new Error('Origin not allowed by CORS'));
     }
+};
 
-    next();
-});
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -53,6 +72,13 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
+    if (err && err.message === 'Origin not allowed by CORS') {
+        return res.status(403).json({
+            success: false,
+            message: 'CORS origin denied'
+        });
+    }
+
     console.error('Server error:', err);
     res.status(500).json({
         success: false,
@@ -67,9 +93,18 @@ module.exports = app;
 
 // Only listen if running directly (not in serverless environment)
 if (require.main === module) {
-    app.listen(PORT, () => {
-        console.log('🚀 Server running on port ' + PORT);
-        console.log('🔄 Server Restarted with Email Fix');
-        console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+    const server = app.listen(PORT, () => {
+        console.log('Server running on port ' + PORT);
+        console.log('Environment: ' + (process.env.NODE_ENV || 'development'));
+    });
+
+    server.on('error', (error) => {
+        if (error.code === 'EADDRINUSE') {
+            console.error(`Port ${PORT} is already in use. Stop the existing process or set a different PORT.`);
+            process.exit(1);
+        }
+
+        console.error('Server startup error:', error);
+        process.exit(1);
     });
 }
