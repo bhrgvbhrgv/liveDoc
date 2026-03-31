@@ -86,6 +86,15 @@ export default function Login() {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {!isLogin && (
+                        <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-md text-sm">
+                            <p className="font-semibold mb-1">Registration Requirements</p>
+                            <p>- Name is required</p>
+                            <p>- Email must be a valid format (example: name@email.com)</p>
+                            <p>- Password must be at least 6 characters</p>
+                        </div>
+                    )}
+
+                    {!isLogin && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Name
@@ -99,6 +108,9 @@ export default function Login() {
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 placeholder="Your name"
                             />
+                            <p className="mt-1 text-xs text-gray-500">
+                                Required. Example: John Doe
+                            </p>
                         </div>
                     )}
 
@@ -115,6 +127,9 @@ export default function Login() {
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                             placeholder="your@email.com"
                         />
+                        <p className="mt-1 text-xs text-gray-500">
+                            Required. Must be a valid email format.
+                        </p>
                     </div>
 
                     <div>
@@ -129,8 +144,11 @@ export default function Login() {
                             required
                             minLength={6}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                            placeholder="••••••••"
+                            placeholder="********"
                         />
+                        <p className="mt-1 text-xs text-gray-500">
+                            Required. Minimum 6 characters.
+                        </p>
                     </div>
 
                     {error && (
